@@ -82,46 +82,16 @@ func TestHandleLog_OneLine(t *testing.T) {
 	}
 }
 
-func TestHandleLog_SmallRepo_Lossless(t *testing.T) {
-	raw := buildFakeLog(3)
-	result, err := handleLog(raw, false, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEq(t, "lossless", true, result.Lossless)
-	if !strings.Contains(result.Stdout, "3 commits") {
-		t.Errorf("expected '3 commits' in: %s", result.Stdout)
-	}
-}
-
-func TestHandleLog_LargeRepo_Lossy(t *testing.T) {
-	raw := buildFakeLog(logDisplayThreshold + 5)
-	result, err := handleLog(raw, false, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertEq(t, "lossless", false, result.Lossless)
-	if !strings.Contains(result.Stdout, "showing") {
-		t.Errorf("expected 'showing' in lossy output: %s", result.Stdout)
-	}
-}
-
-func TestHandleLog_ExplicitNSmall_Lossless(t *testing.T) {
+func TestHandleLog_Lossless(t *testing.T) {
 	raw := buildFakeLog(5)
 	result, err := handleLog(raw, false, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEq(t, "lossless", true, result.Lossless)
-}
-
-func TestHandleLog_ExplicitNLarge_Lossy(t *testing.T) {
-	raw := buildFakeLog(logDisplayThreshold + 10)
-	result, err := handleLog(raw, false, logDisplayThreshold+10)
-	if err != nil {
-		t.Fatal(err)
+	if !strings.Contains(result.Stdout, "5 commits") {
+		t.Errorf("expected '5 commits' in: %s", result.Stdout)
 	}
-	assertEq(t, "lossless", false, result.Lossless)
 }
 
 func TestParseGitDate(t *testing.T) {
@@ -152,12 +122,13 @@ func TestSupports_GitLog(t *testing.T) {
 		want bool
 		name string
 	}{
-		{[]string{"log"}, true, "plain log"},
 		{[]string{"log", "--oneline"}, true, "log --oneline"},
 		{[]string{"log", "-n", "5"}, true, "log -n 5"},
 		{[]string{"log", "--max-count=10"}, true, "log --max-count=10"},
 		{[]string{"log", "--oneline", "-n", "3"}, true, "log --oneline -n 3"},
-		{[]string{"-C", "/path", "log"}, true, "log with -C"},
+		{[]string{"-C", "/path", "log", "--oneline"}, true, "log with -C"},
+		{[]string{"log"}, false, "plain log rejected (unbounded)"},
+		{[]string{"-C", "/path", "log"}, false, "plain log with -C rejected (unbounded)"},
 		{[]string{"log", "--format=%H"}, false, "log --format rejected"},
 		{[]string{"log", "HEAD~5..HEAD"}, false, "log range rejected"},
 		{[]string{"status"}, false, "wrong subcommand"},
@@ -172,55 +143,6 @@ func TestSupports_GitLog(t *testing.T) {
 
 // --- integration tests: real git repo ----------------------------------------
 
-func TestIntegration_GitLog_Plain_Lossy(t *testing.T) {
-	dir, _ := newTestRepo(t)
-	gitEnv := append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
-
-	// Add enough commits to exceed the display threshold.
-	for i := 0; i < logDisplayThreshold; i++ {
-		cmd := exec.Command("git", "commit", "--allow-empty", "-m", "extra commit")
-		cmd.Dir = dir
-		cmd.Env = gitEnv
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git commit: %v\n%s", err, out)
-		}
-	}
-
-	cmd := exec.Command("git", "log")
-	cmd.Dir = dir
-	cmd.Env = gitEnv
-	raw, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("git log: %v", err)
-	}
-
-	result, err := handleLog(string(raw), false, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assertEq(t, "lossless", false, result.Lossless)
-	if !strings.Contains(result.Stdout, "showing") {
-		t.Errorf("expected 'showing N' in lossy output:\n%s", result.Stdout)
-	}
-
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	// summary line + up to logDisplayThreshold entry lines
-	if len(lines) < 2 {
-		t.Errorf("expected summary + entries, got:\n%s", result.Stdout)
-	}
-	// Each entry line should contain a date in YYYY-MM-DD format.
-	entryLine := lines[1]
-	if !strings.Contains(entryLine, "-") {
-		t.Errorf("expected date in entry line: %q", entryLine)
-	}
-	t.Logf("compressed log:\n%s", result.Stdout)
-}
 
 func TestIntegration_GitLog_SmallN_Lossless(t *testing.T) {
 	dir, _ := newTestRepo(t)

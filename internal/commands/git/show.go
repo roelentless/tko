@@ -121,8 +121,11 @@ func handleShow(raw string) (*commands.Result, error) {
 
 	diffResult, err := handleDiff(diffPart)
 	if err != nil {
-		// Diff parse failed; return header only as lossy (diff info lost).
-		return &commands.Result{Stdout: sb.String(), Lossless: false}, nil
+		return nil, err
+	}
+	if !diffResult.Lossless {
+		// Diff is too large to compress losslessly; fall back to raw passthrough.
+		return nil, fmt.Errorf("git show: diff exceeds lossless threshold")
 	}
 
 	sb.WriteByte('\n')
@@ -130,6 +133,6 @@ func handleShow(raw string) (*commands.Result, error) {
 
 	return &commands.Result{
 		Stdout:   sb.String(),
-		Lossless: diffResult.Lossless,
+		Lossless: true,
 	}, nil
 }

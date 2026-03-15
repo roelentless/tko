@@ -8,12 +8,10 @@ import (
 	"strings"
 
 	"tko/internal/commands"
-	_ "tko/internal/commands/git"    // register git handlers
-	_ "tko/internal/commands/gotest" // register go test handler
-	_ "tko/internal/commands/ls"     // register ls handler
+	_ "tko/internal/commands/git" // register git handlers
+	_ "tko/internal/commands/ls"  // register ls handler
 	"tko/internal/compress"
 	"tko/internal/hook"
-	"tko/internal/pager"
 	"tko/internal/runner"
 	"tko/internal/tracking"
 	"tko/internal/upgrade"
@@ -139,12 +137,6 @@ func runWrapped(args []string, sample bool) {
 	}
 
 	output := compressed.Stdout
-
-	if !compressed.Lossless {
-		if path, perr := pager.Save(cmd, result.Stdout); perr == nil {
-			output += "\n" + pager.Hint(path)
-		}
-	}
 
 	if compressed.Stderr != "" {
 		fmt.Fprint(os.Stderr, compressed.Stderr)

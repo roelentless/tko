@@ -12,7 +12,6 @@ import (
 // whether or not global flags are present.
 func TestSupports_ContextFlags(t *testing.T) {
 	status := &gitStatusHandler{}
-	diff := &gitDiffHandler{}
 	log := &gitLogHandler{}
 	show := &gitShowHandler{}
 
@@ -30,17 +29,11 @@ func TestSupports_ContextFlags(t *testing.T) {
 		{status, []string{"-C", "/path", "status", "--short"}, false, "status --short rejected"},
 		{status, []string{"--unknown-flag", "status"}, false, "unknown global flag rejected"},
 
-		// git diff — plain and with -C
-		{diff, []string{"diff"}, true, "plain diff"},
-		{diff, []string{"-C", "/some/path", "diff"}, true, "diff with -C"},
-		{diff, []string{"-C", "/some/path", "diff", "--cached"}, true, "diff --cached with -C"},
-		{diff, []string{"-C", "/path", "diff", "--word-diff"}, false, "diff --word-diff rejected"},
-
-		// git log — plain and with -C
-		{log, []string{"log"}, true, "plain log"},
-		{log, []string{"-C", "/some/path", "log"}, true, "log with -C"},
+		// git log — only bounded/lossless patterns
 		{log, []string{"log", "--oneline"}, true, "log --oneline"},
 		{log, []string{"log", "-n", "5"}, true, "log -n 5"},
+		{log, []string{"-C", "/some/path", "log", "--oneline"}, true, "log with -C --oneline"},
+		{log, []string{"log"}, false, "plain log rejected (unbounded)"},
 		{log, []string{"log", "--format=%H"}, false, "log --format rejected"},
 		{log, []string{"log", "HEAD~5..HEAD"}, false, "log range rejected"},
 

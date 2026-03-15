@@ -67,10 +67,7 @@ _ "tko/internal/commands/mycommand"
 
 ## Key Design Rules
 
-**Lossless vs Lossy** — every handler declares `Lossless: true/false` explicitly.
-- Lossless: all information is preserved in compressed form. No temp file needed.
-- Lossy: some detail is omitted. The pager saves raw stdout to `/tmp/tko-<ts>-<cmd>.txt`
-  and appends `# [RAW] Full output: /path` so the agent can grep the original.
+**Lossless only** — every handler must declare `Lossless: true`. If a handler cannot guarantee that all information is preserved, it must return an error instead, which causes tko to fall back to raw passthrough. There is no pager, no temp file, no truncation. The agent always gets either compressed-and-complete or the original raw output.
 
 **Never modify the input** — handlers receive the original command and args unchanged. The runner always executes exactly what the agent requested. Handlers only transform stdout/stderr. This is a hard contract: breaking it means the agent runs something different from what it asked for.
 
@@ -105,28 +102,47 @@ untracked(2): tmp/{debug.log,notes.txt}
 - Verbs: `modified`, `new`, `deleted`, `renamed`, `copied`
 - Brace grouping: files sharing parent dir + extension → `dir/{a,b}.ext`
 
-### git diff
+### git log (--oneline or -n N ≤ 20)
 
 ```
-diff: 3 files +45 -12
+log: 5 commits
+a1b2c3d 2026-03-15 feat: add git diff handler
+b2c3d4e 2026-03-14 fix: status parser edge case
+```
+
+- One line per commit: `<7-char hash> <YYYY-MM-DD> <subject>`
+- Plain `git log` (no limit) passes through raw — not handled
+
+### git show
+
+```
+commit a1b2c3d
+author: Jane <jane@example.com>  date: 2026-03-15
+    feat: add git diff handler
+
+diff: 2 files +45 -12
 --- pkg/foo.go +12 -3
 @@ -45,7 +45,9 @@ func Foo() {
  context
 -old line
 +new line
---- bar/baz.go +33 -9 (new)
-@@ -0,0 +1,33 @@
-+...
---- some/big.lock +0 -0 (new) [2606 lines — truncated, see raw]
 ```
 
-- Summary header: `diff: N files +A -D`
-- Per-file header: `--- path +added -removed [flags]`
-- Flags: `(new)`, `(deleted)`, `[binary]`, `[N lines — truncated, see raw]`
-- Renames shown as: `--- old.go → new.go +A -D`
-- Stripped: `diff --git`, `index`, `--- a/`, `+++ b/` headers
-- Lossless when no file exceeds `diffFileTruncateLines` (300) lines
-- Lossy (raw saved to pager) when large files are truncated (e.g. lock files)
+- Compact commit header: hash, author, date, subject
+- Diff section reuses the unified diff parser
+- If the diff exceeds the lossless threshold, falls back to raw passthrough
+
+### ls / ls -la
+
+```
+dirs(2): cmd/ internal/
+files(5): *.go(2) go.mod go.sum README.md
+hidden(1): .gitignore
+total: 8 items
+```
+
+- Plain `ls`: single line with all names and count
+- `ls -la`: dirs / files (grouped by extension) / hidden, permissions stripped
 
 ---
 
@@ -174,4 +190,3 @@ commands. Never double-wraps.
 | `~/.local/share/tko/tracking.db` | SQLite: compressions + misses tables |
 | `~/.local/share/tko/errors.log` | Handler failures with timestamp + command |
 | `~/.claude/settings.json` | Patched with PreToolUse Bash hook entry |
-| `/tmp/tko-<ts>-<cmd>.txt` | Pager temp files for lossy compressions |

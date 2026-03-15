@@ -7,59 +7,9 @@ import (
 	"tko/internal/commands"
 )
 
-func init() {
-	commands.Register(&gitDiffHandler{})
-}
-
-// gitDiffHandler handles `git diff` with args that produce standard unified patch output.
-type gitDiffHandler struct{}
-
-func (h *gitDiffHandler) Route() string { return "git" }
-
-func (h *gitDiffHandler) Supports(args []string) bool {
-	sub, rest, ok := gitSubcommand(args)
-	return ok && sub == "diff" && supportsDiff(rest)
-}
-
-func (h *gitDiffHandler) Handle(args []string, rawStdout, _ string) (*commands.Result, error) {
-	return handleDiff(rawStdout)
-}
-
 // diffFileTruncateLines is the max diff lines (hunks + context) shown per file.
 // Files exceeding this are replaced with a stat line; the handler declares lossy.
 const diffFileTruncateLines = 300
-
-// supportsDiff returns true if we can handle these git diff args.
-//
-// Uses an allowlist: only flags known to produce standard unified patch are
-// accepted. Anything unrecognised falls through to passthrough rather than
-// risking a parse of a completely different output format (e.g. --word-diff,
-// --no-patch, --output=file).
-func supportsDiff(args []string) bool {
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Commit refs, paths, -- separator: fine.
-			continue
-		}
-		switch {
-		case arg == "--cached", arg == "--staged",
-			arg == "-p", arg == "--patch",
-			arg == "--no-color", arg == "--color=never",
-			arg == "-w", arg == "--ignore-all-space",
-			arg == "-b", arg == "--ignore-space-change",
-			arg == "--ignore-blank-lines",
-			arg == "--ignore-space-at-eol",
-			arg == "--patience", arg == "--histogram", arg == "--minimal",
-			strings.HasPrefix(arg, "-U"),
-			strings.HasPrefix(arg, "--unified="):
-			// Known safe: these don't change the output format, only
-			// which lines appear or how much context is shown.
-		default:
-			return false
-		}
-	}
-	return true
-}
 
 // handleDiff compresses git diff (unified patch) output.
 // Lossless when every file fits within diffFileTruncateLines.

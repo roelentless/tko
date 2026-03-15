@@ -14,26 +14,18 @@ func TestRewrite_GitStatus(t *testing.T) {
 	}
 }
 
-func TestRewrite_GitDiffCached(t *testing.T) {
-	got, ok := commands.Rewrite("git diff --cached")
-	if !ok || got != "tko -- git diff --cached" {
-		t.Errorf("got (%q, %v), want (\"tko -- git diff --cached\", true)", got, ok)
+func TestRewrite_GitLog(t *testing.T) {
+	got, ok := commands.Rewrite("git log --oneline")
+	if !ok || got != "tko -- git log --oneline" {
+		t.Errorf("got (%q, %v), want (\"tko -- git log --oneline\", true)", got, ok)
 	}
 }
 
-func TestRewrite_GitLogNotHandled(t *testing.T) {
-	// git log has no handler — should not be rewritten
-	_, ok := commands.Rewrite("git log --oneline -10")
+func TestRewrite_GitDiffNotHandled(t *testing.T) {
+	// git diff is a targeted command — should pass through raw
+	_, ok := commands.Rewrite("git diff --cached")
 	if ok {
-		t.Error("git log should not be rewritten: no handler supports it")
-	}
-}
-
-func TestRewrite_GitDiffWordDiffNotHandled(t *testing.T) {
-	// --word-diff changes output format — handler rejects it, should not rewrite
-	_, ok := commands.Rewrite("git diff --word-diff")
-	if ok {
-		t.Error("git diff --word-diff should not be rewritten: unsupported flag")
+		t.Error("git diff should not be rewritten: targeted command")
 	}
 }
 

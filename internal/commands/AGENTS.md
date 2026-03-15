@@ -100,16 +100,13 @@ Never swallow errors and return garbled output.
 
 ---
 
-## Lossless vs Lossy
+## Lossless only
 
-Declare `Lossless: true` only when the compressed output contains every piece of
-information from the original. If you drop, truncate, or summarise anything:
+All handlers must be lossless. `Lossless: true` is the only valid declaration.
 
-- Set `Lossless: false`
-- The pager saves raw stdout to `/tmp/tko-<ts>-<cmd>.txt` automatically
-- The agent receives a pointer and can follow it
-
-When in doubt, declare lossy. A wrong `Lossless: true` removes the safety net.
+If you cannot guarantee that the compressed output contains every piece of information
+from the original, return `nil, err` instead. tko will fall back to raw passthrough.
+There is no pager, no temp file, no truncation path.
 
 ---
 
@@ -156,7 +153,7 @@ handler.Supports([]string{"--format=json", "subcommand"}) // want: false
 - [ ] `Supports()` uses an allowlist for flags, not a blocklist
 - [ ] `Supports()` strips global flags via a shared helper
 - [ ] `Handle()` does not modify `args`
-- [ ] `Lossless` is declared accurately; lossy handlers rely on pager, not truncation without pointer
+- [ ] `Lossless: true` — if lossless cannot be guaranteed, return `nil, err` instead
 - [ ] Every opt-in pattern has a test
 - [ ] Every rejection case has a test
 - [ ] `go test ./...` passes

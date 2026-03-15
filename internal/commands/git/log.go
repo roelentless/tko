@@ -25,8 +25,15 @@ func (h *gitLogHandler) Supports(args []string) bool {
 	if !ok || sub != "log" {
 		return false
 	}
-	_, _, ok2 := parseLogFlags(rest)
-	return ok2
+	oneline, maxCount, ok2 := parseLogFlags(rest)
+	if !ok2 {
+		return false
+	}
+	// Only handle cases we can guarantee lossless:
+	//   --oneline (already compact, pass-through)
+	//   -n N where N ≤ threshold (bounded output)
+	// Plain `git log` with no limit passes through raw.
+	return oneline || (maxCount > 0 && maxCount <= logDisplayThreshold)
 }
 
 func (h *gitLogHandler) Handle(args []string, rawStdout, _ string) (*commands.Result, error) {
@@ -100,34 +107,19 @@ func handleLog(raw string, oneline bool, maxCount int) (*commands.Result, error)
 	}
 
 	entries := parseLogEntries(raw)
-	total := len(entries)
-	if total == 0 {
+	if len(entries) == 0 {
 		return nil, fmt.Errorf("git log: could not parse output")
 	}
 
-	// Lossless when all commits fit: either explicitly limited to ≤ threshold,
-	// or the repo naturally has ≤ threshold commits.
-	lossless := (maxCount > 0 && maxCount <= logDisplayThreshold) || total <= logDisplayThreshold
-	showing := total
-	if !lossless && total > logDisplayThreshold {
-		showing = logDisplayThreshold
-	}
-
 	var sb strings.Builder
-	if lossless {
-		fmt.Fprintf(&sb, "log: %d commits\n", total)
-	} else {
-		fmt.Fprintf(&sb, "log: %d commits (showing %d)\n", total, showing)
-	}
-
-	for i := 0; i < showing; i++ {
-		e := entries[i]
+	fmt.Fprintf(&sb, "log: %d commits\n", len(entries))
+	for _, e := range entries {
 		fmt.Fprintf(&sb, "%s %s %s\n", e.hash, e.date, e.subject)
 	}
 
 	return &commands.Result{
 		Stdout:   sb.String(),
-		Lossless: lossless,
+		Lossless: true,
 	}, nil
 }
 
