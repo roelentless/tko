@@ -13,6 +13,7 @@ func init() {
 
 type gitShowHandler struct{}
 
+func (h *gitShowHandler) Id() string    { return "git-show" }
 func (h *gitShowHandler) Route() string { return "git" }
 
 func (h *gitShowHandler) Supports(args []string) bool {

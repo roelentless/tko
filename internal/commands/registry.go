@@ -16,6 +16,7 @@ type Result struct {
 //
 // Each handler is responsible for its own routing:
 //
+//   - Id()       — stable identifier for tracking ("git-status", "ls")
 //   - Route()    — the binary name used as the O(1) registry key ("git", "npm")
 //   - Supports() — fine-grained match: does this handler own this exact invocation?
 //   - Handle()   — compress rawStdout (and optionally rawStderr)
@@ -29,6 +30,10 @@ type Result struct {
 //
 // Register in an init() function: commands.Register(&MyHandler{})
 type Handler interface {
+	// Id returns a stable hyphen-separated identifier used for stats tracking.
+	// e.g. "git-status", "git-log", "ls"
+	Id() string
+
 	// Route returns the binary name used as the registry lookup key.
 	// e.g. "git", "npm", "cargo"
 	Route() string

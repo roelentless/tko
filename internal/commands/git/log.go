@@ -18,6 +18,7 @@ const logDisplayThreshold = 20
 
 type gitLogHandler struct{}
 
+func (h *gitLogHandler) Id() string    { return "git-log" }
 func (h *gitLogHandler) Route() string { return "git" }
 
 func (h *gitLogHandler) Supports(args []string) bool {

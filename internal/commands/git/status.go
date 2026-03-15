@@ -17,6 +17,7 @@ func init() {
 // gitStatusHandler handles plain `git status` (no extra args or flags).
 type gitStatusHandler struct{}
 
+func (h *gitStatusHandler) Id() string    { return "git-status" }
 func (h *gitStatusHandler) Route() string { return "git" }
 
 func (h *gitStatusHandler) Supports(args []string) bool {

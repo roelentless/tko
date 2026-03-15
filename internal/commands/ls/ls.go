@@ -16,6 +16,7 @@ func init() {
 
 type lsHandler struct{}
 
+func (h *lsHandler) Id() string    { return "ls" }
 func (h *lsHandler) Route() string { return "ls" }
 
 func (h *lsHandler) Supports(args []string) bool {

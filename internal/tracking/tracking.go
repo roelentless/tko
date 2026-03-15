@@ -11,11 +11,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schemaVersion is incremented when the misses table schema changes.
-// On version mismatch the misses table is dropped and recreated (dev tool,
-// data is not precious).
-const schemaVersion = 2
-
 const createCompressions = `
 CREATE TABLE IF NOT EXISTS compressions (
 	id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +37,18 @@ CREATE TABLE IF NOT EXISTS misses (
 CREATE INDEX IF NOT EXISTS idx_miss_prefix ON misses (prefix);
 CREATE INDEX IF NOT EXISTS idx_miss_ts     ON misses (ts);
 `
+
+// Reset deletes the tracking database.
+func Reset() error {
+	path, err := dbPath()
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
 
 // Record saves a compression event. Best-effort: errors are silently dropped.
 func Record(command string, inputTok, outputTok int, lossless bool) {
@@ -326,29 +333,13 @@ func open() (*sql.DB, error) {
 		return nil, err
 	}
 
-	// Stable tables
 	if _, err := db.Exec(createCompressions); err != nil {
 		db.Close()
 		return nil, err
 	}
-
-	// Migrate misses table when schema changes
-	var ver int
-	_ = db.QueryRow("PRAGMA user_version").Scan(&ver)
-	if ver < schemaVersion {
-		_, _ = db.Exec("DROP TABLE IF EXISTS misses")
-		_, _ = db.Exec("DROP INDEX IF EXISTS idx_miss_prefix")
-		_, _ = db.Exec("DROP INDEX IF EXISTS idx_miss_ts")
-		if _, err := db.Exec(createMisses); err != nil {
-			db.Close()
-			return nil, err
-		}
-		_, _ = db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
-	} else {
-		if _, err := db.Exec(createMisses); err != nil {
-			db.Close()
-			return nil, err
-		}
+	if _, err := db.Exec(createMisses); err != nil {
+		db.Close()
+		return nil, err
 	}
 
 	return db, nil

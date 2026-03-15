@@ -95,6 +95,11 @@ dispatch:
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	case "reset":
+		if err := tracking.Reset(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "upgrade":
 		if err := upgrade.Run(version.Version, version.Repo); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -145,7 +150,7 @@ func runWrapped(args []string, sample bool) {
 	}
 
 	tracking.Record(
-		commands.CommandPrefix(cmd, cmdArgs),
+		handler.Id(),
 		compress.TokenCount(result.Stdout),
 		compress.TokenCount(output),
 		compressed.Lossless,
