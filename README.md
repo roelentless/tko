@@ -4,23 +4,21 @@
 
 # tko
 
-**An experiment in token-efficient CLI output for agents.**
+**An experiment in token-optimizing outputs for agents.**
 
-Most CLI tools are built for humans: verbose, instructional output full of formatting that agents don't need. Until tools ship native `AGENT=true` output modes, `tko` tries to help — intercepting popular commands and rewriting their output into compact, lossless forms.
+`tko` intercepts CLI commands via a Claude Code `PreToolUse` hook and rewrites their output into a more compact form before the agent sees it.
 
 ```
 git status  →  471 tokens     tko -- git status  →  201 tokens   (-58%)
 ```
 
-**Strategy-based, not magic rewrite.** Each handler is a purpose-built compressor for a specific command and argument pattern. You can read what it does, predict its output, and trust it. No LLM calls, no heuristics, no surprises.
+Each handler targets a specific command and argument pattern. No LLM calls, no heuristics — deterministic output you can read and predict.
 
-**Lossless only.** tko never drops information. If a command can't be compressed losslessly, it is passed through raw. The agent always gets the full picture.
+If a command can't be compressed losslessly, it is passed through unchanged.
 
 ---
 
-**What we optimise — and what we don't.** The target is bloat: commands that dump large, context-heavy output an agent has to wade through on every call. `git status`, `git log --oneline`, `ls`. These are the token sinks worth attacking.
-
-Targeted commands where an agent is actively searching — `git diff path/to/file`, `grep`, `rg`, `jq` — are left alone. The agent asked for something specific; the output is already intentional. Intercepting it risks breaking the workflow it was built around.
+**Scope.** Handlers are added for commands that produce repetitive, structural output: `git status`, `git log`, `ls`. Commands where the output is the point — `git diff path/to/file`, `grep`, `rg`, `jq` — are left alone.
 
 ---
 
