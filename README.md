@@ -4,9 +4,9 @@
 
 # tko
 
-**An experiment in reducing agent token waste.**
+**An experiment in token-efficient CLI output for agents.**
 
-Most CLI tools are built for humans: verbose, instructional output full of formatting that burns agent context. Until tools ship native `AGENT=true` output modes, `tko` is an attempt to fill that gap — intercepting popular commands and rewriting their output into compact, lossless forms.
+Most CLI tools are built for humans: verbose, instructional output full of formatting that agents don't need. Until tools ship native `AGENT=true` output modes, `tko` tries to help — intercepting popular commands and rewriting their output into compact, lossless forms.
 
 ```
 git status  →  471 tokens     tko -- git status  →  201 tokens   (-58%)
