@@ -47,15 +47,19 @@ No prompt changes. No agent awareness. Just fewer tokens.
 ## Install
 
 ```sh
-git clone https://github.com/you/tko
+curl -fsSL https://raw.githubusercontent.com/roelentless/tko/main/install.sh | sh
+```
+
+Installs to `~/.local/bin/tko`, adds it to your PATH, and registers the Claude Code hook. Restart Claude Code. Done.
+
+**Build from source** (requires Go 1.22+):
+
+```sh
+git clone https://github.com/roelentless/tko
 cd tko
 make install          # builds + copies to ~/.local/bin/tko
 tko hook install      # patches ~/.claude/settings.json
 ```
-
-Restart Claude Code. Done.
-
-**Requirements:** Go 1.22+
 
 ---
 
