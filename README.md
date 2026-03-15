@@ -4,7 +4,7 @@
 
 # tko
 
-**An experiment in token-optimizing outputs for agents.**
+**An experiment in shrinking tool output for agents.**
 
 `tko` intercepts CLI commands via a Claude Code `PreToolUse` hook and rewrites their output into a more compact form before the agent sees it.
 
