@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"tko/internal/commands"
-	_ "tko/internal/commands/git" // register git handler
+	_ "tko/internal/commands/git"    // register git handlers
+	_ "tko/internal/commands/gotest" // register go test handler
+	_ "tko/internal/commands/ls"     // register ls handler
 	"tko/internal/compress"
 	"tko/internal/hook"
 	"tko/internal/pager"

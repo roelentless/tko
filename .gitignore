@@ -1,2 +1,4 @@
 rfc/
 dist/
+.DS_Store
+assets/*.png

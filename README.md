@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="https://raw.githubusercontent.com/roelentless/tko/main/assets/tko.png" width="600"/>
+</div>
+
 # tko
 
 **Knock out useless tokens.**

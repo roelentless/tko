@@ -13,6 +13,8 @@ import (
 func TestSupports_ContextFlags(t *testing.T) {
 	status := &gitStatusHandler{}
 	diff := &gitDiffHandler{}
+	log := &gitLogHandler{}
+	show := &gitShowHandler{}
 
 	cases := []struct {
 		handler interface{ Supports([]string) bool }
@@ -33,6 +35,21 @@ func TestSupports_ContextFlags(t *testing.T) {
 		{diff, []string{"-C", "/some/path", "diff"}, true, "diff with -C"},
 		{diff, []string{"-C", "/some/path", "diff", "--cached"}, true, "diff --cached with -C"},
 		{diff, []string{"-C", "/path", "diff", "--word-diff"}, false, "diff --word-diff rejected"},
+
+		// git log — plain and with -C
+		{log, []string{"log"}, true, "plain log"},
+		{log, []string{"-C", "/some/path", "log"}, true, "log with -C"},
+		{log, []string{"log", "--oneline"}, true, "log --oneline"},
+		{log, []string{"log", "-n", "5"}, true, "log -n 5"},
+		{log, []string{"log", "--format=%H"}, false, "log --format rejected"},
+		{log, []string{"log", "HEAD~5..HEAD"}, false, "log range rejected"},
+
+		// git show — plain and with -C
+		{show, []string{"show"}, true, "plain show"},
+		{show, []string{"-C", "/some/path", "show"}, true, "show with -C"},
+		{show, []string{"show", "HEAD"}, true, "show HEAD"},
+		{show, []string{"show", "--stat"}, false, "show --stat rejected"},
+		{show, []string{"show", "HEAD:file.go"}, false, "show colon notation rejected"},
 	}
 
 	for _, c := range cases {
