@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            goos: linux
+            goarch: arm64
+          - os: macos-latest
+            platform: macos
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+          go build -ldflags "-X tko/internal/version.Version=${VERSION}" \
+            -o dist/tko ./cmd/tko/
+
+      - name: Package
+        run: |
+          cd dist
+          tar czf tko-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz tko
+          rm tko
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tko-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/tko-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/*/tko-*.tar.gz
