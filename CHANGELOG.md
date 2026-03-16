@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-16
+
+- feature: `go build` compression — strips the common module prefix from `# package/path` error header lines (e.g. `# github.com/org/repo/internal/foo` → `# ./internal/foo`); error lines preserved verbatim; passes through unchanged on success or when there is no common prefix
+
 ## 2026-03-15
 
 - feature: `git log` compression — shows up to 20 commits with hash, date, subject; lossy for large histories (pager saves full output), lossless for small repos or explicit `-n ≤ 20`; `--oneline` passed through unchanged
