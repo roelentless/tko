@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -109,12 +108,6 @@ type MissSummary struct {
 	Potential int // Count * AvgTok — total tokens we could have saved
 }
 
-type MissDetail struct {
-	Command string
-	Count   int
-	AvgTok  int
-}
-
 // --- queries ------------------------------------------------------------------
 
 func Stats() (allTime, today Summary, byCmd []CommandStat, err error) {
@@ -181,38 +174,6 @@ func Misses() ([]MissSummary, error) {
 	return out, nil
 }
 
-// MissDetail returns per-command breakdown for a given prefix.
-func MissDetails(prefix string) ([]MissDetail, error) {
-	db, err := open()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	rows, err := db.Query(`
-		SELECT command,
-		       COUNT(*) as cnt,
-		       CAST(AVG(output_tok) AS INTEGER) as avg_tok
-		FROM misses
-		WHERE prefix = ?
-		GROUP BY command
-		ORDER BY cnt * AVG(output_tok) DESC
-	`, prefix)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []MissDetail
-	for rows.Next() {
-		var d MissDetail
-		if err := rows.Scan(&d.Command, &d.Count, &d.AvgTok); err == nil {
-			out = append(out, d)
-		}
-	}
-	return out, nil
-}
-
 // --- printers -----------------------------------------------------------------
 
 func PrintStats() error {
@@ -251,71 +212,40 @@ func PrintStats() error {
 	return nil
 }
 
+type RawMiss struct {
+	TS        int64
+	Prefix    string
+	Command   string
+	OutputTok int
+	ExitCode  int
+}
+
 func PrintMisses(prefix string) error {
+	db, err := open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	var rows *sql.Rows
 	if prefix != "" {
-		return printMissDetail(prefix)
+		rows, err = db.Query(`SELECT ts, prefix, command, output_tok, exit_code FROM misses WHERE prefix = ? ORDER BY ts`, prefix)
+	} else {
+		rows, err = db.Query(`SELECT ts, prefix, command, output_tok, exit_code FROM misses ORDER BY ts`)
 	}
-	return printMissSummary()
-}
-
-func printMissSummary() error {
-	misses, err := Misses()
 	if err != nil {
 		return fmt.Errorf("read misses: %w", err)
 	}
-	if len(misses) == 0 {
-		fmt.Println("no misses recorded yet")
-		return nil
-	}
+	defer rows.Close()
 
-	fmt.Printf("%-24s  %5s  %10s  %10s\n", "prefix", "seen", "avg tokens", "potential")
-	fmt.Printf("%-24s  %5s  %10s  %10s\n", "------", "----", "----------", "---------")
-	for _, m := range misses {
-		fmt.Printf("%-24s  %5d  %10s  %10s\n",
-			m.Prefix, m.Count, fmtTokens(m.AvgTok), fmtTokens(m.Potential))
-	}
-	fmt.Println()
-	fmt.Println("zoom in: tp misses '<prefix>'")
-	return nil
-}
-
-func printMissDetail(prefix string) error {
-	details, err := MissDetails(prefix)
-	if err != nil {
-		return fmt.Errorf("read misses: %w", err)
-	}
-	if len(details) == 0 {
-		fmt.Printf("no misses for prefix %q\n", prefix)
-		return nil
-	}
-
-	total := 0
-	for _, d := range details {
-		total += d.Count
-	}
-	fmt.Printf("%s — %d occurrences\n\n", prefix, total)
-
-	maxCmd := 0
-	for _, d := range details {
-		if len(d.Command) > maxCmd {
-			maxCmd = len(d.Command)
+	for rows.Next() {
+		var m RawMiss
+		if err := rows.Scan(&m.TS, &m.Prefix, &m.Command, &m.OutputTok, &m.ExitCode); err != nil {
+			return err
 		}
+		fmt.Println(m.Command)
 	}
-	if maxCmd > 60 {
-		maxCmd = 60
-	}
-
-	fmtStr := fmt.Sprintf("%%-%ds  %%5s  %%10s\n", maxCmd)
-	fmt.Printf(fmtStr, "command", "seen", "avg tokens")
-	fmt.Printf(fmtStr, strings.Repeat("-", maxCmd), "----", "----------")
-	for _, d := range details {
-		cmd := d.Command
-		if len(cmd) > maxCmd {
-			cmd = cmd[:maxCmd-1] + "…"
-		}
-		fmt.Printf(fmtStr, cmd, fmt.Sprintf("%dx", d.Count), fmtTokens(d.AvgTok))
-	}
-	return nil
+	return rows.Err()
 }
 
 // --- internal -----------------------------------------------------------------

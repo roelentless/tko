@@ -236,6 +236,10 @@ func runHookExec() {
 
 	rewritten, ok := commands.Rewrite(cmd)
 	if !ok {
+		if name, args, full, simple := commands.ParseSimple(cmd); simple {
+			prefix := commands.CommandPrefix(name, args)
+			tracking.RecordMiss(prefix, full, 0, 0)
+		}
 		os.Exit(0)
 	}
 
