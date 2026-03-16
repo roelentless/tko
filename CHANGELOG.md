@@ -2,6 +2,7 @@
 
 ## 2026-03-16
 
+- feature: `du -sh` compression — strips the common directory prefix from all paths and shows it once in the header; entries rendered as `size  name`; 38–57% token savings on glob expansions like `du -sh /long/path/*`
 - feature: `go build` compression — strips the common module prefix from `# package/path` error header lines (e.g. `# github.com/org/repo/internal/foo` → `# ./internal/foo`); error lines preserved verbatim; passes through unchanged on success or when there is no common prefix
 
 ## 2026-03-15

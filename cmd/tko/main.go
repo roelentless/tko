@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"tko/internal/commands"
+	_ "tko/internal/commands/du"      // register du handler
 	_ "tko/internal/commands/git"     // register git handlers
 	_ "tko/internal/commands/gobuild" // register go build handler
 	_ "tko/internal/commands/ls"      // register ls handler
