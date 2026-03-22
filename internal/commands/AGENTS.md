@@ -128,6 +128,7 @@ Every opt-in pattern in `Supports()` must have a test. Tests must:
 2. **Test `Supports()` directly** for each pattern (and rejection cases).
 3. **Test the compressed output** — assert structure, not just that it ran.
 4. **Assert `Lossless`** — if your handler declares lossless, the test must verify nothing was dropped.
+5. **No absolute paths in string literals** — unit test data (strings passed to `Handle`, `Supports`, or helper functions directly) must use relative paths like `foo/bar/baz.txt`. Never use paths starting with `/`. Integration tests that shell out to a real binary via `t.TempDir()` will produce absolute paths from the OS — that is the only acceptable source of absolute paths in tests.
 
 See `git/routing_test.go` for `Supports()` pattern coverage and `git/status_test.go`
 for integration test structure.
@@ -150,7 +151,7 @@ handler.Supports([]string{"--format=json", "subcommand"}) // want: false
 ## Checklist before opening a PR
 
 - [ ] `Route()` returns the binary name only
-- [ ] `Supports()` uses an allowlist for flags, not a blocklist
+- [ ] `Supports()` uses an allowlist for flags, not a blocklist (exception: commands whose default output is plain paths and where only a small set of flags change that format — e.g. `find`, `fd` — may use a blocklist of output-modifying flags)
 - [ ] `Supports()` strips global flags via a shared helper
 - [ ] `Handle()` does not modify `args`
 - [ ] `Lossless: true` — if lossless cannot be guaranteed, return `nil, err` instead

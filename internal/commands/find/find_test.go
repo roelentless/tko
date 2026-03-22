@@ -17,21 +17,21 @@ func TestFindSupports(t *testing.T) {
 		want bool
 		name string
 	}{
-		{[]string{"/path", "-type", "f"}, true, "find /path -type f"},
-		{[]string{"/path", "-maxdepth", "2", "-name", "*.md", "-type", "f"}, true, "maxdepth + name"},
-		{[]string{"/path", "-type", "d"}, true, "find -type d"},
-		{[]string{"/path"}, true, "path only"},
-		{[]string{"/a", "-o", "-name", "*.txt"}, true, "with -o operator"},
-		{[]string{"/path", "-not", "-name", "*.git"}, true, "with -not"},
+		{[]string{"src", "-type", "f"}, true, "-type f"},
+		{[]string{"src", "-maxdepth", "2", "-name", "*.md", "-type", "f"}, true, "maxdepth + name"},
+		{[]string{"src", "-type", "d"}, true, "-type d"},
+		{[]string{"src"}, true, "path only"},
+		{[]string{"src", "-o", "-name", "*.txt"}, true, "-o operator"},
+		{[]string{"src", "-not", "-name", "*.git"}, true, "-not"},
 		// rejected: output modifiers
-		{[]string{"/path", "-exec", "echo", "{}", ";"}, false, "-exec rejected"},
-		{[]string{"/path", "-execdir", "ls", "{}", ";"}, false, "-execdir rejected"},
-		{[]string{"/path", "-printf", "%p\\n"}, false, "-printf rejected"},
-		{[]string{"/path", "-delete"}, false, "-delete rejected"},
-		{[]string{"/path", "-ls"}, false, "-ls rejected"},
-		{[]string{"/path", "-print0"}, false, "-print0 rejected"},
-		{[]string{"/path", "-ok", "rm", "{}", ";"}, false, "-ok rejected"},
-		{[]string{"/path", "-fprint", "/tmp/out"}, false, "-fprint rejected"},
+		{[]string{"src", "-exec", "echo", "{}", ";"}, false, "-exec"},
+		{[]string{"src", "-execdir", "ls", "{}", ";"}, false, "-execdir"},
+		{[]string{"src", "-printf", "%p\\n"}, false, "-printf"},
+		{[]string{"src", "-delete"}, false, "-delete"},
+		{[]string{"src", "-ls"}, false, "-ls"},
+		{[]string{"src", "-print0"}, false, "-print0"},
+		{[]string{"src", "-ok", "rm", "{}", ";"}, false, "-ok"},
+		{[]string{"src", "-fprint", "out.txt"}, false, "-fprint"},
 		// rejected: empty args
 		{nil, false, "nil args"},
 		{[]string{}, false, "empty args"},
@@ -53,20 +53,24 @@ func TestFdSupports(t *testing.T) {
 		want bool
 		name string
 	}{
-		{[]string{"-t", "f", "/path"}, true, "fd -t f /path"},
+		{[]string{"-t", "f", "src"}, true, "-t f"},
 		{[]string{"pattern"}, true, "pattern only"},
 		{[]string{"-e", "go"}, true, "-e extension"},
-		{[]string{}, true, "no args (list all)"},
+		{[]string{}, true, "no args"},
+		// common real-world patterns: dot + path, --extension, --exclude
+		{[]string{".", "src", "--type", "f"}, true, "dot + path + --type f"},
+		{[]string{"--type", "f", "--extension", "swift", "src", "--exclude", "'.build'"}, true, "--extension + --exclude"},
+		{[]string{".", "src", "--type", "f", "--extension", "swift", "--exclude", "'.build'"}, true, "dot + path + --type + --extension + --exclude"},
 		// rejected: output modifiers
-		{[]string{"--exec", "echo", "{}"}, false, "--exec rejected"},
-		{[]string{"-x", "cat"}, false, "-x rejected"},
-		{[]string{"--exec-batch", "rm"}, false, "--exec-batch rejected"},
-		{[]string{"-X", "rm"}, false, "-X rejected"},
-		{[]string{"--list-details"}, false, "--list-details rejected"},
-		{[]string{"-l"}, false, "-l rejected"},
-		{[]string{"--print0"}, false, "--print0 rejected"},
-		{[]string{"-0"}, false, "-0 rejected"},
-		{[]string{"--format=%p"}, false, "--format= rejected"},
+		{[]string{"--exec", "echo", "{}"}, false, "--exec"},
+		{[]string{"-x", "cat"}, false, "-x"},
+		{[]string{"--exec-batch", "rm"}, false, "--exec-batch"},
+		{[]string{"-X", "rm"}, false, "-X"},
+		{[]string{"--list-details"}, false, "--list-details"},
+		{[]string{"-l"}, false, "-l"},
+		{[]string{"--print0"}, false, "--print0"},
+		{[]string{"-0"}, false, "-0"},
+		{[]string{"--format=%p"}, false, "--format="},
 	}
 	for _, c := range cases {
 		got := h.Supports(c.args)
@@ -136,11 +140,11 @@ func TestHandlePaths_Empty(t *testing.T) {
 }
 
 func TestHandlePaths_CommonPrefix(t *testing.T) {
-	raw := "/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/agents/agent-sdk-verifier-ts.md\n" +
-		"/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/agents/agent-sdk-verifier-py.md\n" +
-		"/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/README.md\n" +
-		"/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/.claude-plugin/plugin.json\n" +
-		"/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/commands/new-sdk-app.md\n"
+	raw := "pkg/agents/verifier-ts.md\n" +
+		"pkg/agents/verifier-py.md\n" +
+		"pkg/README.md\n" +
+		"pkg/.config/plugin.json\n" +
+		"pkg/commands/init.md\n"
 
 	result, err := handlePaths("find", "files", raw)
 	if err != nil {
@@ -151,24 +155,22 @@ func TestHandlePaths_CommonPrefix(t *testing.T) {
 	}
 
 	// Common prefix should appear once in the header.
-	prefix := "/Users/roel/projects/clones/claude-code/plugins/agent-sdk-dev/"
-	if strings.Count(result.Stdout, prefix) != 1 {
+	if strings.Count(result.Stdout, "pkg/") != 1 {
 		t.Errorf("expected prefix exactly once in:\n%s", result.Stdout)
 	}
 	// All filenames must appear.
-	for _, name := range []string{"agent-sdk-verifier-ts.md", "agent-sdk-verifier-py.md", "README.md", "plugin.json", "new-sdk-app.md"} {
+	for _, name := range []string{"verifier-ts.md", "verifier-py.md", "README.md", "plugin.json", "init.md"} {
 		if !strings.Contains(result.Stdout, name) {
 			t.Errorf("expected %q in:\n%s", name, result.Stdout)
 		}
 	}
-	// Count must appear.
 	if !strings.Contains(result.Stdout, "5 files") {
 		t.Errorf("expected '5 files' in:\n%s", result.Stdout)
 	}
 }
 
 func TestHandlePaths_NoCommonPrefix(t *testing.T) {
-	raw := "/home/user/a.txt\n/tmp/b.txt\n"
+	raw := "foo/a.txt\nbar/b.txt\n"
 
 	result, err := handlePaths("find", "files", raw)
 	if err != nil {
@@ -177,10 +179,10 @@ func TestHandlePaths_NoCommonPrefix(t *testing.T) {
 	if !result.Lossless {
 		t.Error("expected lossless")
 	}
-	if !strings.Contains(result.Stdout, "/home/user/a.txt") {
+	if !strings.Contains(result.Stdout, "foo/a.txt") {
 		t.Errorf("expected full path in:\n%s", result.Stdout)
 	}
-	if !strings.Contains(result.Stdout, "/tmp/b.txt") {
+	if !strings.Contains(result.Stdout, "bar/b.txt") {
 		t.Errorf("expected full path in:\n%s", result.Stdout)
 	}
 	if !strings.Contains(result.Stdout, "2 files") {
@@ -189,7 +191,7 @@ func TestHandlePaths_NoCommonPrefix(t *testing.T) {
 }
 
 func TestHandlePaths_SinglePath(t *testing.T) {
-	raw := "/some/deep/path/file.go\n"
+	raw := "pkg/sub/file.go\n"
 
 	result, err := handlePaths("find", "files", raw)
 	if err != nil {
@@ -230,23 +232,23 @@ func TestHandlePaths_RelativePaths(t *testing.T) {
 // --- unit tests: commonDirPrefix ---------------------------------------------
 
 func TestCommonDirPrefix_SharedParent(t *testing.T) {
-	paths := []string{"/a/b/c.txt", "/a/b/d.txt"}
+	paths := []string{"foo/bar/c.txt", "foo/bar/d.txt"}
 	got := commonDirPrefix(paths)
-	if got != "/a/b/" {
-		t.Errorf("got %q, want %q", got, "/a/b/")
+	if got != "foo/bar/" {
+		t.Errorf("got %q, want %q", got, "foo/bar/")
 	}
 }
 
 func TestCommonDirPrefix_DifferentDirs(t *testing.T) {
-	paths := []string{"/a/b/c.txt", "/a/x/d.txt"}
+	paths := []string{"foo/bar/c.txt", "foo/baz/d.txt"}
 	got := commonDirPrefix(paths)
-	if got != "/a/" {
-		t.Errorf("got %q, want %q", got, "/a/")
+	if got != "foo/" {
+		t.Errorf("got %q, want %q", got, "foo/")
 	}
 }
 
 func TestCommonDirPrefix_NoCommon(t *testing.T) {
-	paths := []string{"/home/user/file.txt", "/tmp/other.txt"}
+	paths := []string{"foo/a.txt", "bar/b.txt"}
 	got := commonDirPrefix(paths)
 	if got != "" {
 		t.Errorf("got %q, want %q", got, "")
@@ -254,9 +256,9 @@ func TestCommonDirPrefix_NoCommon(t *testing.T) {
 }
 
 func TestCommonDirPrefix_Single(t *testing.T) {
-	got := commonDirPrefix([]string{"/a/b/c.txt"})
-	if got != "/a/b/" {
-		t.Errorf("got %q, want %q", got, "/a/b/")
+	got := commonDirPrefix([]string{"foo/bar/c.txt"})
+	if got != "foo/bar/" {
+		t.Errorf("got %q, want %q", got, "foo/bar/")
 	}
 }
 
@@ -292,7 +294,6 @@ func TestIntegration_Find_TypeF(t *testing.T) {
 	if strings.Count(result.Stdout, dir) != 1 {
 		t.Errorf("expected dir path exactly once in:\n%s", result.Stdout)
 	}
-	// All filenames must appear.
 	for _, name := range []string{"a.txt", "b.txt", "c.go"} {
 		if !strings.Contains(result.Stdout, name) {
 			t.Errorf("expected %q in:\n%s", name, result.Stdout)
@@ -381,7 +382,6 @@ func TestIntegration_FD_TypeF(t *testing.T) {
 	if strings.Count(result.Stdout, dir) != 1 {
 		t.Errorf("expected dir path exactly once in:\n%s", result.Stdout)
 	}
-	// All filenames must appear.
 	for _, name := range []string{"a.txt", "b.txt", "c.go"} {
 		if !strings.Contains(result.Stdout, name) {
 			t.Errorf("expected %q in:\n%s", name, result.Stdout)

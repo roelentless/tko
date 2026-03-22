@@ -31,8 +31,11 @@ internal/
   commands/
     registry.go              Handler interface + Register/Lookup + CommandPrefix()
     rewrite.go               Rewrite(cmd) — wraps with "tko " if handler registered
-    git/
-      status.go              git status handler (lossless, ~58% token reduction)
+    du/                      du -sh handler
+    find/                    find and fd handlers (find.go + fd.go share handlePaths)
+    git/                     git status, log, show, diff handlers
+    gobuild/                 go build handler
+    ls/                      ls / ls -la handler
   hook/
     hook.go                  hook install/uninstall/status/claude; patches settings.json
   tracking/
@@ -40,7 +43,6 @@ internal/
                              Record() — compression events; RecordMiss() — passthroughs
                              PrintStats() / PrintMisses(prefix)
   compress/compress.go       TokenCount() — chars/4 approximation
-  pager/pager.go             Save raw output to /tmp/tko-<ts>-<cmd>.txt (lossy path)
 rfc/RFC-001-tko-architecture.md  full design document
 ```
 
@@ -131,6 +133,23 @@ diff: 2 files +45 -12
 - Compact commit header: hash, author, date, subject
 - Diff section reuses the unified diff parser
 - If the diff exceeds the lossless threshold, falls back to raw passthrough
+
+### find / fd
+
+```
+find src/pkg/ (5 files):
+agents/verifier-ts.md
+agents/verifier-py.md
+README.md
+.config/plugin.json
+commands/init.md
+```
+
+- Header: `find <common-prefix> (N files|dirs|items):`
+- Paths stripped of longest common directory prefix
+- Label derived from `-type f` → "files", `-type d` → "dirs", else "items"
+- `fd` uses same format; `-t`/`--type` flags parsed for label
+- `Supports()` uses a blocklist (not allowlist): rejects output-modifying flags (`-exec`, `-execdir`, `-printf`, `-print0`, `-ls`, `-delete`, `-fprint*`, `--exec`, `--list-details`, `--format`, `--print0`)
 
 ### ls / ls -la
 
