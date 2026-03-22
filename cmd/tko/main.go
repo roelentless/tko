@@ -121,6 +121,10 @@ func runWrapped(args []string, sample bool) {
 
 	handler, ok := commands.Match(cmd, cmdArgs)
 	if !ok {
+		if commands.IsIgnored(cmd) {
+			os.Exit(runner.Passthrough(cmd, cmdArgs))
+			return
+		}
 		prefix := commands.CommandPrefix(cmd, cmdArgs)
 		fullCmd := cmd + " " + strings.Join(cmdArgs, " ")
 		exitCode, outputBytes := runner.PassthroughCounted(cmd, cmdArgs)
@@ -240,7 +244,7 @@ func runHookExec() {
 
 	rewritten, ok := commands.Rewrite(cmd)
 	if !ok {
-		if name, args, full, simple := commands.ParseSimple(cmd); simple {
+		if name, args, full, simple := commands.ParseSimple(cmd); simple && !commands.IsIgnored(name) {
 			prefix := commands.CommandPrefix(name, args)
 			tracking.RecordMiss(prefix, full, 0, 0)
 		}
