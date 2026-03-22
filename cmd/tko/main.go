@@ -91,6 +91,13 @@ dispatch:
 			os.Exit(1)
 		}
 	case "misses":
+		if len(sub) > 1 && sub[1] == "--reset" {
+			if err := tracking.ResetMisses(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
+		}
 		prefix := ""
 		if len(sub) > 1 {
 			prefix = strings.Join(sub[1:], " ")
@@ -285,7 +292,7 @@ func printUsage() {
 usage:
   tko [--sample] -- <command> [args...]   compress command output
   tko stats                               show token savings summary
-  tko misses [<prefix>]                   show missed commands by potential
+  tko misses [--reset] [<prefix>]         show missed commands; --reset clears them
   tko hook <install|uninstall|status>     manage Claude Code hook
   tko upgrade                             upgrade tko to the latest release
   tko rewrite <cmd>                       rewrite cmd to use tko (hook use)

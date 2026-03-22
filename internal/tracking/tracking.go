@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_miss_prefix ON misses (prefix);
 CREATE INDEX IF NOT EXISTS idx_miss_ts     ON misses (ts);
 `
 
-// Reset deletes the tracking database.
+// Reset deletes the tracking database (both stats and misses).
 func Reset() error {
 	path, err := dbPath()
 	if err != nil {
@@ -47,6 +47,17 @@ func Reset() error {
 		return err
 	}
 	return nil
+}
+
+// ResetMisses clears only the misses table, preserving compression stats.
+func ResetMisses() error {
+	db, err := open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.Exec(`DELETE FROM misses`)
+	return err
 }
 
 // Record saves a compression event. Best-effort: errors are silently dropped.
